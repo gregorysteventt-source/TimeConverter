@@ -1,0 +1,6 @@
+{
+  "name": "TempusConv - Time Converter",
+  "description": "An intuitive, high-precision time calculator and converter for seconds, HH:MM:SS, time differences, additions, and media timecodes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

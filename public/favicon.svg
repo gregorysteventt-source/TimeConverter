@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="50%" stop-color="#6366F1" />
+      <stop offset="100%" stop-color="#8B5CF6" />
+    </linearGradient>
+    <linearGradient id="dialGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.05" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Base Rounded Squircle with Shadow -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bgGrad)" filter="url(#shadow)" />
+  
+  <!-- Outer Glow Ring -->
+  <rect x="40" y="40" width="432" height="432" rx="104" stroke="rgba(255,255,255,0.2)" stroke-width="4" fill="none" />
+
+  <!-- Top Timer Button -->
+  <rect x="232" y="100" width="48" height="24" rx="8" fill="#FFFFFF" opacity="0.9" />
+  <path d="M216 124h80" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" opacity="0.9" />
+
+  <!-- Top Right Lap Button -->
+  <rect x="352" y="132" width="28" height="14" rx="5" transform="rotate(45 352 132)" fill="#FFFFFF" opacity="0.75" />
+
+  <!-- Inner Watch Dial Circle -->
+  <circle cx="256" cy="276" r="140" fill="url(#dialGrad)" stroke="#FFFFFF" stroke-width="8" stroke-opacity="0.35" />
+
+  <!-- Outer Progress Arc (Highlighting Time Flow) -->
+  <path d="M256 136 A140 140 0 1 1 140 336" stroke="#38BDF8" stroke-width="12" stroke-linecap="round" />
+
+  <!-- Minute / Hour Marks -->
+  <circle cx="256" cy="166" r="5" fill="#FFFFFF" opacity="0.9" />
+  <circle cx="366" cy="276" r="5" fill="#FFFFFF" opacity="0.9" />
+  <circle cx="256" cy="386" r="5" fill="#FFFFFF" opacity="0.9" />
+  <circle cx="146" cy="276" r="5" fill="#FFFFFF" opacity="0.9" />
+
+  <!-- Clock Hands -->
+  <!-- Hour hand -->
+  <line x1="256" y1="276" x2="200" y2="240" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" />
+  <!-- Minute hand -->
+  <line x1="256" y1="276" x2="290" y2="190" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" />
+  <!-- Second hand (Accent amber/cyan) -->
+  <line x1="256" y1="276" x2="310" y2="310" stroke="#F59E0B" stroke-width="4" stroke-linecap="round" />
+
+  <!-- Center Pin -->
+  <circle cx="256" cy="276" r="14" fill="#FFFFFF" />
+  <circle cx="256" cy="276" r="6" fill="#6366F1" />
+</svg>

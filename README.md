@@ -119,6 +119,17 @@ npm run lint
 
 ---
 
+## 🌐 Despliegue en GitHub Pages
+
+El proyecto ya está configurado con **rutas relativas (`base: './'`)** y un flujo automatizado con **GitHub Actions**:
+
+1. En tu repositorio de GitHub, ve a **Settings** (Configuración) > **Pages**.
+2. En la sección **Build and deployment** > **Source**, selecciona: **GitHub Actions**.
+3. Haz un `push` a la rama `main` o `master` (o ejecuta el workflow manualmente desde la pestaña **Actions**).
+4. ¡Listo! Tu web estará funcionando en `https://TU_USUARIO.github.io/TU_REPOSITORIO/` sin pantalla en blanco.
+
+---
+
 ## 💡 Ejemplos de Uso
 
 | Entrada | Formato Pegado | Resultado Obtenido |

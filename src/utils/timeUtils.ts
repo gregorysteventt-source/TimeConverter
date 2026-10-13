@@ -320,17 +320,11 @@ export function calculateTimeDifference(
   };
 }
 
-export function calculateTimeAddition(
-  h: number,
-  m: number,
-  s: number,
-  deltaSecs: number,
-  isAddition: boolean = true
-) {
+/** Adds a number of seconds to a base time. */
+export function calculateTimeAddition(h: number, m: number, s: number, deltaSecs: number) {
   const baseSecs = timeToTotalSeconds(h, m, s);
-  const finalSecs = isAddition
-    ? baseSecs + (isNaN(deltaSecs) ? 0 : deltaSecs)
-    : Math.max(0, baseSecs - (isNaN(deltaSecs) ? 0 : deltaSecs));
+  const safeDelta = isNaN(deltaSecs) || deltaSecs < 0 ? 0 : deltaSecs;
+  const finalSecs = baseSecs + safeDelta;
 
   const breakdown = secondsToBreakdown(finalSecs);
   return {

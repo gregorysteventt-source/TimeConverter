@@ -147,7 +147,7 @@ export default function App() {
   const [diffMB, setDiffMB] = useState<string>('');
   const [diffSB, setDiffSB] = useState<string>('');
 
-  // State Section 4: Suma / Resta a Tiempo Base
+  // State Section 4: Suma a Tiempo Base
   const [addHA, setAddHA] = useState<string>('');
   const [addMA, setAddMA] = useState<string>('');
   const [addSA, setAddSA] = useState<string>('');
@@ -181,7 +181,7 @@ export default function App() {
     setAddMA('');
     setAddSA('');
     setAddSecsInput('');
-    showToast("Campos de 'Suma/Resta de Tiempo' limpiados");
+    showToast("Campos de 'Sumar al Tiempo' limpiados");
   };
 
   const resetAll = () => {
@@ -263,7 +263,7 @@ export default function App() {
             />
           </div>
 
-          {/* SECTION 4: Suma / Resta a Tiempo Base */}
+          {/* SECTION 4: Suma a Tiempo Base */}
           <div className="lg:col-span-2">
             <TimeAdditionCard
               addHA={addHA}

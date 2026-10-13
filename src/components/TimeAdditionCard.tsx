@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   calculateTimeAddition,
-  parseTimeString,
   parseTimeAndSeconds,
+  parseTimeString,
   copyToClipboardFallback,
   formatPad,
 } from '../utils/timeUtils';
-import { PlusCircle, MinusCircle, Copy, ClipboardPaste, Plus, Minus } from 'lucide-react';
+import { PlusCircle, Copy, ClipboardPaste } from 'lucide-react';
 import { CardHeader } from './CardHeader';
 
 interface TimeAdditionCardProps {
@@ -24,6 +24,9 @@ interface TimeAdditionCardProps {
 const smallFieldClass =
   'w-full text-center bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-lg py-2 text-sm text-slate-900 dark:text-white font-mono tabular-nums focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600';
 
+/** Selects the current value so a fresh paste replaces it instead of appending. */
+const selectOnFocus = (e: React.FocusEvent<HTMLInputElement>) => e.currentTarget.select();
+
 export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
   addHA,
   addMA,
@@ -35,26 +38,13 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
   onShowToast,
   onAddHistory,
 }) => {
-  const [isAddition, setIsAddition] = useState<boolean>(true);
-
   const h = parseInt(addHA, 10) || 0;
   const m = parseInt(addMA, 10) || 0;
   const s = parseInt(addSA, 10) || 0;
   const deltaSecs = parseInt(addSecsInput, 10) || 0;
 
-  const additionResult = calculateTimeAddition(h, m, s, deltaSecs, isAddition);
+  const additionResult = calculateTimeAddition(h, m, s, deltaSecs);
   const hasInput = Boolean(addHA || addMA || addSA || addSecsInput);
-
-  const handleSetAddPreset = (hVal: number, mVal: number, sVal: number, addSecsVal: number, additionMode = true) => {
-    setIsAddition(additionMode);
-    onChangeBase(String(hVal), String(mVal), String(sVal));
-    onChangeDelta(String(addSecsVal));
-    const res = calculateTimeAddition(hVal, mVal, sVal, addSecsVal, additionMode);
-    onShowToast('Valores de suma configurados');
-    const symbol = additionMode ? '+' : '-';
-    const inputStr = `${formatPad(hVal)}:${formatPad(mVal)}:${formatPad(sVal)} ${symbol} ${addSecsVal}s`;
-    onAddHistory('Suma/Resta de Tiempo', inputStr, `${res.formatted} (${res.finalSecs}s)`, 'add');
-  };
 
   const readClipboard = async (promptMessage: string): Promise<string> => {
     let text = '';
@@ -84,11 +74,12 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
     onChangeDelta(String(combined.deltaSeconds));
 
     onShowToast(
-      `Repartido automáticamente: base ${formatPad(hours)}:${formatPad(minutes)}:${formatPad(seconds)} ${isAddition ? '+' : '−'} ${combined.deltaSeconds.toLocaleString()}s`
+      `Repartido automáticamente:  ${formatPad(hours)}:${formatPad(minutes)}:${formatPad(seconds)}  +  ${combined.deltaSeconds.toLocaleString()}s`
     );
-    const inputStr = `${formatPad(hours)}:${formatPad(minutes)}:${formatPad(seconds)} ${isAddition ? '+' : '-'} ${combined.deltaSeconds}s`;
-    const res = calculateTimeAddition(hours, minutes, seconds, combined.deltaSeconds, isAddition);
-    onAddHistory('Suma/Resta de Tiempo', inputStr, `${res.formatted} (${res.finalSecs}s)`, 'add');
+
+    const inputStr = `${formatPad(hours)}:${formatPad(minutes)}:${formatPad(seconds)} + ${combined.deltaSeconds}s`;
+    const res = calculateTimeAddition(hours, minutes, seconds, combined.deltaSeconds);
+    onAddHistory('Suma de Tiempo', inputStr, `${res.formatted} (${res.finalSecs}s)`, 'add');
     return true;
   };
 
@@ -110,7 +101,7 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
   };
 
   const handlePasteDelta = async () => {
-    const text = await readClipboard('Pega los segundos a sumar/restar');
+    const text = await readClipboard('Pega los segundos a sumar');
 
     // The same two-value payload also works from the seconds side.
     if (applyCombinedPaste(text)) return;
@@ -177,19 +168,21 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
       return;
     }
 
+    // A delta typed as a time ("90s", "1.5m") is converted to seconds.
     const parsed = parseTimeString(text);
-    if (parsed) {
+    if (parsed && !/^\d+$/.test(text.trim())) {
       e.preventDefault();
       const totalSecs = parsed.hours * 3600 + parsed.minutes * 60 + parsed.seconds;
       onChangeDelta(String(totalSecs));
       onShowToast(`¡Tiempo pegado como ${totalSecs.toLocaleString()} segundos! 📋`);
-    } else {
-      const cleaned = text.trim().replace(/,/g, '');
-      if (/^\d+$/.test(cleaned)) {
-        e.preventDefault();
-        onChangeDelta(cleaned);
-        onShowToast(`¡Segundos pegados: ${Number(cleaned).toLocaleString()}s! 📋`);
-      }
+      return;
+    }
+
+    const cleaned = text.trim().replace(/,/g, '');
+    if (/^\d+$/.test(cleaned)) {
+      e.preventDefault();
+      onChangeDelta(cleaned);
+      onShowToast(`¡Segundos pegados: ${Number(cleaned).toLocaleString()}s! 📋`);
     }
   };
 
@@ -202,45 +195,15 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
     }
   };
 
-  const modeButton = (active: boolean, kind: 'add' | 'sub') => {
-    const activeClass =
-      kind === 'add' ? 'bg-amber-500 text-white' : 'bg-rose-500 text-white';
-    return `px-2.5 py-1 rounded-md text-xs font-semibold transition-colors flex items-center gap-1 ${
-      active ? activeClass : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-    }`;
-  };
-
   return (
     <section className="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col shadow-sm hover:border-amber-500/30 transition-colors duration-300">
       <CardHeader
-        icon={isAddition ? PlusCircle : MinusCircle}
+        icon={PlusCircle}
         accent="amber"
-        title={isAddition ? 'Sumar al tiempo' : 'Restar al tiempo'}
-        description="Ingresa una hora base y agrégale o réstale cualquier cantidad de segundos enteros."
-        hint="O pega los dos valores a la vez, separados por un tabulador: 07:51:06⇥547"
+        title="Sumar al tiempo"
+        description="Suma una cantidad de segundos a una hora base."
+        hint="Pega los dos valores a la vez, separados por un tabulador: 07:51:06⇥547"
         onReset={onReset}
-        actions={
-          <div className="bg-slate-100 dark:bg-slate-950/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center">
-            <button
-              type="button"
-              onClick={() => setIsAddition(true)}
-              className={modeButton(isAddition, 'add')}
-              title="Sumar segundos"
-            >
-              <Plus className="w-3 h-3" />
-              Suma
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsAddition(false)}
-              className={modeButton(!isAddition, 'sub')}
-              title="Restar segundos"
-            >
-              <Minus className="w-3 h-3" />
-              Resta
-            </button>
-          </div>
-        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-5 md:gap-6">
@@ -271,6 +234,7 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
                   placeholder="HH"
                   aria-label="Horas tiempo base"
                   value={addHA}
+                  onFocus={selectOnFocus}
                   onPaste={handleNativePasteBase}
                   onChange={(e) => onChangeBase(e.target.value.replace(/[^\d]/g, ''), addMA, addSA)}
                   className={smallFieldClass}
@@ -283,6 +247,7 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
                   placeholder="MM"
                   aria-label="Minutos tiempo base"
                   value={addMA}
+                  onFocus={selectOnFocus}
                   onPaste={handleNativePasteBase}
                   onChange={(e) => {
                     let v = e.target.value.replace(/[^\d]/g, '');
@@ -299,6 +264,7 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
                   placeholder="SS"
                   aria-label="Segundos tiempo base"
                   value={addSA}
+                  onFocus={selectOnFocus}
                   onPaste={handleNativePasteBase}
                   onChange={(e) => {
                     let v = e.target.value.replace(/[^\d]/g, '');
@@ -310,11 +276,11 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
               </div>
             </div>
 
-            {/* Delta seconds */}
+            {/* Seconds to add */}
             <div className="p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  Segundos a {isAddition ? 'sumar' : 'restar'}
+                  Segundos a sumar
                 </span>
                 <button
                   type="button"
@@ -332,39 +298,17 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
                   id="addSecsInput"
                   min="0"
                   inputMode="numeric"
-                  placeholder="Ej. 3600"
+                  placeholder="Ej. 547"
                   value={addSecsInput}
+                  onFocus={selectOnFocus}
                   onPaste={handleNativePasteDelta}
                   onChange={(e) => onChangeDelta(e.target.value.replace(/[^\d]/g, ''))}
-                  className={`${smallFieldClass} pl-4 pr-16 text-left`}
+                  className={`${smallFieldClass} pl-4 pr-14 text-left`}
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 dark:text-slate-500 pointer-events-none">
-                  {isAddition ? '+ seg' : '− seg'}
+                  seg
                 </span>
               </div>
-            </div>
-          </div>
-
-          {/* Quick presets */}
-          <div className="mt-4">
-            <span className="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-2">
-              Valores rápidos
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={() => handleSetAddPreset(1, 30, 0, 1800, true)}
-                className="text-[11px] bg-slate-100 dark:bg-slate-800/50 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-amber-500/30 transition-colors font-medium tabular-nums"
-              >
-                01:30:00 + 30m
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSetAddPreset(23, 45, 0, 7200, true)}
-                className="text-[11px] bg-slate-100 dark:bg-slate-800/50 hover:bg-amber-500/10 dark:hover:bg-amber-500/20 text-slate-600 dark:text-slate-300 hover:text-amber-600 dark:hover:text-amber-400 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700/50 hover:border-amber-500/30 transition-colors font-medium tabular-nums"
-              >
-                23:45:00 + 2h
-              </button>
             </div>
           </div>
         </div>

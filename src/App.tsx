@@ -8,22 +8,47 @@ import { TimeAdditionCard } from './components/TimeAdditionCard';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { Toast } from './components/Toast';
 
+const THEME_KEY = 'tempus_theme';
+const HISTORY_KEY = 'tempus_history';
+
+const systemTheme = (): ThemeMode =>
+  window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+/**
+ * Resolves the initial theme.
+ * Falls back to the operating system preference when the user has never made an
+ * explicit choice — previously this always returned 'dark', so the light theme
+ * was unreachable on a first visit.
+ */
+const initialTheme = (): ThemeMode => {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved === 'light' || saved === 'dark') return saved;
+  return systemTheme();
+};
+
 export default function App() {
   // Theme state
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    const saved = localStorage.getItem('tempus_theme');
-    if (saved === 'light' || saved === 'dark') return saved;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'dark';
-  });
+  const [theme, setTheme] = useState<ThemeMode>(initialTheme);
+
+  // Follow the OS preference live, but only while the user has not chosen manually.
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (event: MediaQueryListEvent) => {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved !== 'light' && saved !== 'dark') {
+        setTheme(event.matches ? 'dark' : 'light');
+      }
+    };
+
+    media.addEventListener('change', handleChange);
+    return () => media.removeEventListener('change', handleChange);
+  }, []);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('tempus_theme', theme);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   const toggleTheme = () => {
@@ -54,7 +79,7 @@ export default function App() {
   // History System
   const [history, setHistory] = useState<HistoryItem[]>(() => {
     try {
-      const saved = localStorage.getItem('tempus_history');
+      const saved = localStorage.getItem(HISTORY_KEY);
       if (saved) {
         return JSON.parse(saved).map((item: HistoryItem) => ({
           ...item,
@@ -71,7 +96,7 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('tempus_history', JSON.stringify(history));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
     } catch {
       // Ignore
     }
@@ -178,7 +203,7 @@ export default function App() {
   };
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white transition-colors duration-300 font-sans">
+    <div className="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white transition-colors duration-300 font-sans">
       {/* Header */}
       <Header
         theme={theme}
@@ -189,8 +214,8 @@ export default function App() {
       />
 
       {/* Main Grid Content */}
-      <main className="max-w-7xl w-full mx-auto px-4 py-8 flex-grow flex flex-col justify-center">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
+      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex-grow">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
           {/* SECTION 1: Segundos a HH:MM:SS */}
           <SecondsToTimeCard
             secondsInput={sec1Input}
@@ -213,45 +238,49 @@ export default function App() {
             onAddHistory={addHistory}
           />
 
-          {/* SECTION 3: Diferencia de Tiempos */}
-          <TimeDifferenceCard
-            diffHA={diffHA}
-            diffMA={diffMA}
-            diffSA={diffSA}
-            diffHB={diffHB}
-            diffMB={diffMB}
-            diffSB={diffSB}
-            onChangeA={(h, m, s) => {
-              setDiffHA(h);
-              setDiffMA(m);
-              setDiffSA(s);
-            }}
-            onChangeB={(h, m, s) => {
-              setDiffHB(h);
-              setDiffMB(m);
-              setDiffSB(s);
-            }}
-            onReset={resetSection3}
-            onShowToast={showToast}
-            onAddHistory={addHistory}
-          />
+          {/* SECTION 3: Diferencia de Tiempos — two paired input groups read better full width */}
+          <div className="lg:col-span-2">
+            <TimeDifferenceCard
+              diffHA={diffHA}
+              diffMA={diffMA}
+              diffSA={diffSA}
+              diffHB={diffHB}
+              diffMB={diffMB}
+              diffSB={diffSB}
+              onChangeA={(h, m, s) => {
+                setDiffHA(h);
+                setDiffMA(m);
+                setDiffSA(s);
+              }}
+              onChangeB={(h, m, s) => {
+                setDiffHB(h);
+                setDiffMB(m);
+                setDiffSB(s);
+              }}
+              onReset={resetSection3}
+              onShowToast={showToast}
+              onAddHistory={addHistory}
+            />
+          </div>
 
           {/* SECTION 4: Suma / Resta a Tiempo Base */}
-          <TimeAdditionCard
-            addHA={addHA}
-            addMA={addMA}
-            addSA={addSA}
-            addSecsInput={addSecsInput}
-            onChangeBase={(h, m, s) => {
-              setAddHA(h);
-              setAddMA(m);
-              setAddSA(s);
-            }}
-            onChangeDelta={setAddSecsInput}
-            onReset={resetSection4}
-            onShowToast={showToast}
-            onAddHistory={addHistory}
-          />
+          <div className="lg:col-span-2">
+            <TimeAdditionCard
+              addHA={addHA}
+              addMA={addMA}
+              addSA={addSA}
+              addSecsInput={addSecsInput}
+              onChangeBase={(h, m, s) => {
+                setAddHA(h);
+                setAddMA(m);
+                setAddSA(s);
+              }}
+              onChangeDelta={setAddSecsInput}
+              onReset={resetSection4}
+              onShowToast={showToast}
+              onAddHistory={addHistory}
+            />
+          </div>
         </div>
       </main>
 
@@ -269,7 +298,7 @@ export default function App() {
       <Toast toasts={toasts} onDismiss={dismissToast} />
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-900 bg-white dark:bg-slate-950 py-6 text-center text-xs text-slate-500 transition-colors duration-300">
+      <footer className="border-t border-slate-200 dark:border-slate-900 py-4 text-center text-xs text-slate-500 transition-colors duration-300">
         <p>© 2026 TempusConv. Diseñado con precisión para conversiones de tiempo en cualquier entorno.</p>
       </footer>
     </div>

@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { calculateTimeAddition, parseTimeString, copyToClipboardFallback, formatPad } from '../utils/timeUtils';
+import {
+  calculateTimeAddition,
+  parseTimeString,
+  parseTimeAndSeconds,
+  copyToClipboardFallback,
+  formatPad,
+} from '../utils/timeUtils';
 import { PlusCircle, MinusCircle, Copy, ClipboardPaste, Plus, Minus } from 'lucide-react';
 import { CardHeader } from './CardHeader';
 
@@ -50,7 +56,7 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
     onAddHistory('Suma/Resta de Tiempo', inputStr, `${res.formatted} (${res.finalSecs}s)`, 'add');
   };
 
-  const handlePasteBase = async () => {
+  const readClipboard = async (promptMessage: string): Promise<string> => {
     let text = '';
     try {
       if (navigator.clipboard && navigator.clipboard.readText) {
@@ -59,10 +65,38 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
     } catch {
       text = '';
     }
+    return text || window.prompt(promptMessage) || '';
+  };
 
-    if (!text) {
-      text = window.prompt('Pega aquí la hora base (HH:MM:SS)') || '';
-    }
+  /**
+   * Applies a two-value paste such as "07:51:06<TAB>547" to both fields at once,
+   * so the base time and the seconds no longer have to be copied separately.
+   *
+   * Returns false when the payload is not a pair of values, leaving the caller
+   * to fall back to its normal single-value paste.
+   */
+  const applyCombinedPaste = (text: string): boolean => {
+    const combined = parseTimeAndSeconds(text);
+    if (combined.kind !== 'base+delta') return false;
+
+    const { hours, minutes, seconds } = combined.base;
+    onChangeBase(String(hours), String(minutes), String(seconds));
+    onChangeDelta(String(combined.deltaSeconds));
+
+    onShowToast(
+      `Repartido automáticamente: base ${formatPad(hours)}:${formatPad(minutes)}:${formatPad(seconds)} ${isAddition ? '+' : '−'} ${combined.deltaSeconds.toLocaleString()}s`
+    );
+    const inputStr = `${formatPad(hours)}:${formatPad(minutes)}:${formatPad(seconds)} ${isAddition ? '+' : '-'} ${combined.deltaSeconds}s`;
+    const res = calculateTimeAddition(hours, minutes, seconds, combined.deltaSeconds, isAddition);
+    onAddHistory('Suma/Resta de Tiempo', inputStr, `${res.formatted} (${res.finalSecs}s)`, 'add');
+    return true;
+  };
+
+  const handlePasteBase = async () => {
+    const text = await readClipboard('Pega aquí la hora base (HH:MM:SS)');
+
+    // A two-value paste fills base and seconds together.
+    if (applyCombinedPaste(text)) return;
 
     const parsed = parseTimeString(text);
     if (!parsed) {
@@ -76,18 +110,10 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
   };
 
   const handlePasteDelta = async () => {
-    let text = '';
-    try {
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        text = await navigator.clipboard.readText();
-      }
-    } catch {
-      text = '';
-    }
+    const text = await readClipboard('Pega los segundos a sumar/restar');
 
-    if (!text) {
-      text = window.prompt('Pega los segundos a sumar/restar') || '';
-    }
+    // The same two-value payload also works from the seconds side.
+    if (applyCombinedPaste(text)) return;
 
     const cleaned = text.trim().replace(/,/g, '');
     if (!/^\d+$/.test(cleaned)) {
@@ -101,6 +127,27 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
 
   const handleNativePasteBase = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const text = e.clipboardData.getData('text');
+    const combined = parseTimeAndSeconds(text);
+
+    if (combined.kind === 'base+delta') {
+      e.preventDefault();
+      applyCombinedPaste(text);
+      return;
+    }
+
+    // Never let a multi-value payload be parsed as a single time: "07:51:06 547"
+    // would silently become one malformed value. Two clean values are handled
+    // above; anything with inner whitespace is a multi-value paste we did not
+    // understand, so ask instead of guessing.
+    if (/\s/.test(text.trim())) {
+      e.preventDefault();
+      onShowToast(
+        'Para pegar los dos valores a la vez usa la hora y los segundos separados por un tabulador (ej. 07:51:06⇥547)',
+        true
+      );
+      return;
+    }
+
     const parsed = parseTimeString(text);
     if (parsed) {
       e.preventDefault();
@@ -112,6 +159,24 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
 
   const handleNativePasteDelta = (e: React.ClipboardEvent<HTMLInputElement>) => {
     const text = e.clipboardData.getData('text');
+    const combined = parseTimeAndSeconds(text);
+
+    // Pasting the pair from the seconds side fills both fields too.
+    if (combined.kind === 'base+delta') {
+      e.preventDefault();
+      applyCombinedPaste(text);
+      return;
+    }
+
+    if (/\s/.test(text.trim())) {
+      e.preventDefault();
+      onShowToast(
+        'Para pegar los dos valores a la vez usa la hora y los segundos separados por un tabulador (ej. 07:51:06⇥547)',
+        true
+      );
+      return;
+    }
+
     const parsed = parseTimeString(text);
     if (parsed) {
       e.preventDefault();
@@ -152,6 +217,7 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
         accent="amber"
         title={isAddition ? 'Sumar al tiempo' : 'Restar al tiempo'}
         description="Ingresa una hora base y agrégale o réstale cualquier cantidad de segundos enteros."
+        hint="O pega los dos valores a la vez, separados por un tabulador: 07:51:06⇥547"
         onReset={onReset}
         actions={
           <div className="bg-slate-100 dark:bg-slate-950/80 p-0.5 rounded-lg border border-slate-200 dark:border-slate-800 flex items-center">
@@ -191,7 +257,7 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
                   type="button"
                   onClick={handlePasteBase}
                   className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium transition-colors"
-                  title="Pegar tiempo base"
+                  title="Pegar hora base, o los dos valores separados por un tabulador (07:51:06⇥547)"
                 >
                   <ClipboardPaste className="w-3 h-3" />
                   Pegar
@@ -254,7 +320,7 @@ export const TimeAdditionCard: React.FC<TimeAdditionCardProps> = ({
                   type="button"
                   onClick={handlePasteDelta}
                   className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium transition-colors"
-                  title="Pegar segundos"
+                  title="Pegar segundos, o los dos valores separados por un tabulador (07:51:06⇥547)"
                 >
                   <ClipboardPaste className="w-3 h-3" />
                   Pegar

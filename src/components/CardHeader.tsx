@@ -23,6 +23,8 @@ interface CardHeaderProps {
   description: string;
   accent: Accent;
   onReset: () => void;
+  /** Optional extra line rendered under the description, e.g. a usage hint. */
+  hint?: string;
   /** Optional control rendered next to the reset button (e.g. the sum/subtract toggle). */
   actions?: React.ReactNode;
 }
@@ -38,6 +40,7 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
   description,
   accent,
   onReset,
+  hint,
   actions,
 }) => (
   <header className="mb-5">
@@ -70,5 +73,11 @@ export const CardHeader: React.FC<CardHeaderProps> = ({
     <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
       {description}
     </p>
+
+    {hint && (
+      <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400 mt-1">
+        {hint}
+      </p>
+    )}
   </header>
 );
